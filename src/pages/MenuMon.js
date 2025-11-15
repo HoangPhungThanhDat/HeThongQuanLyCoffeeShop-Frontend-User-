@@ -11,6 +11,9 @@ import categoryApi from "../api/categoryApi";
 import "../assets/css/loader.css";
 import socket from "../socket";
 
+// ✅ Sử dụng biến môi trường cho API URL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 function MenuMon() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -117,54 +120,53 @@ function MenuMon() {
     audio.play();
   };
 
-  // Thay thế hàm handleAddToCart cũ bằng hàm này:
+  // ✅ Hàm handleAddToCart đã được sửa với URL động
+  const handleAddToCart = (product, event) => {
+    const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-const handleAddToCart = (product, event) => {
-  const cart = JSON.parse(localStorage.getItem("cart")) || [];
+    // Tính giá sau khuyến mãi
+    const hasPromotion = product.promotions && product.promotions.length > 0;
+    const finalPrice = hasPromotion
+      ? product.price * (1 - product.promotions[0].discountPercentage / 100)
+      : product.price;
 
-  // Tính giá sau khuyến mãi
-  const hasPromotion = product.promotions && product.promotions.length > 0;
-  const finalPrice = hasPromotion
-    ? product.price * (1 - product.promotions[0].discountPercentage / 100)
-    : product.price;
+    const index = cart.findIndex((item) => item.id === product.id);
+    if (index !== -1) {
+      cart[index].qty += 1;
+    } else {
+      cart.push({
+        id: product.id,
+        name: product.name,
+        price: finalPrice,
+        originalPrice: product.price,
+        discountPercentage: hasPromotion ? product.promotions[0].discountPercentage : 0,
+        qty: 1,
+        image: `${API_URL}/api/products/image/${product.imageUrl}`, // ✅ Sửa URL
+      });
+    }
 
-  const index = cart.findIndex((item) => item.id === product.id);
-  if (index !== -1) {
-    cart[index].qty += 1;
-  } else {
-    cart.push({
-      id: product.id,
-      name: product.name,
-      price: finalPrice, // ✅ Lưu giá sau giảm thay vì giá gốc
-      originalPrice: product.price, // ✅ Lưu thêm giá gốc để hiển thị nếu cần
-      discountPercentage: hasPromotion ? product.promotions[0].discountPercentage : 0,
-      qty: 1,
-      image: `http://localhost:8080/api/products/image/${product.imageUrl}`,
+    localStorage.setItem("cart", JSON.stringify(cart));
+    window.dispatchEvent(new Event("cartUpdated"));
+
+    const imgElement = event.target.closest(".product-card").querySelector("img");
+    const imgSrc = `${API_URL}/api/products/image/${product.imageUrl}`; // ✅ Sửa URL
+    createFlyingImage(imgSrc, imgElement);
+
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="bi bi-check-circle-fill"></i> Đã thêm!';
+    button.disabled = true;
+
+    setTimeout(() => {
+      button.innerHTML = originalText;
+      button.disabled = false;
+    }, 1500);
+
+    socket.emit("adding-to-cart", {
+      productId: product.id,
+      productName: product.name,
     });
-  }
-
-  localStorage.setItem("cart", JSON.stringify(cart));
-  window.dispatchEvent(new Event("cartUpdated"));
-
-  const imgElement = event.target.closest(".product-card").querySelector("img");
-  const imgSrc = `http://localhost:8080/api/products/image/${product.imageUrl}`;
-  createFlyingImage(imgSrc, imgElement);
-
-  const button = event.target;
-  const originalText = button.innerHTML;
-  button.innerHTML = '<i class="bi bi-check-circle-fill"></i> Đã thêm!';
-  button.disabled = true;
-
-  setTimeout(() => {
-    button.innerHTML = originalText;
-    button.disabled = false;
-  }, 1500);
-
-  socket.emit("adding-to-cart", {
-    productId: product.id,
-    productName: product.name,
-  });
-};
+  };
 
   if (loading) {
     return (
@@ -179,8 +181,6 @@ const handleAddToCart = (product, event) => {
 
   return (
     <>
-
-
       <section className="menu-section">
         <div className="container">
           <div className="menu-header">
@@ -228,9 +228,13 @@ const handleAddToCart = (product, event) => {
                   >
                     <div className="product-image-wrapper">
                       <img
-                        src={`http://localhost:8080/api/products/image/${product.imageUrl}`}
+                        src={`${API_URL}/api/products/image/${product.imageUrl}`} // ✅ Sửa URL
                         alt={product.name}
                         className="product-image"
+                        onError={(e) => {
+                          // ✅ Xử lý lỗi nếu ảnh không tải được
+                          e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
+                        }}
                       />
                       {hasPromotion && (
                         <div className="promotion-badge">

@@ -13,6 +13,9 @@ import { Navigation, Autoplay } from "swiper/modules";
 import productApi from "../api/productApi";
 window.jQuery = window.$ = $;
 
+// ✅ Thêm biến môi trường cho API URL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 function SanPhamMoiNhat() {
   const [products, setProducts] = useState([]);
 
@@ -71,10 +74,14 @@ function SanPhamMoiNhat() {
                 <div className="swiper-slide" key={product.id}>
                   <div className="card border-0 shadow-lg h-100">
                     <img
-                      src={`http://localhost:8080/api/products/image/${product.imageUrl}`}
+                      src={`${API_URL}/api/products/image/${product.imageUrl}`} // ✅ Sửa URL
                       className="card-img-top"
                       alt={product.name}
                       style={{ height: "220px", objectFit: "cover" }}
+                      onError={(e) => {
+                        // ✅ Xử lý lỗi nếu ảnh không tải được
+                        e.target.src = 'https://via.placeholder.com/300x220?text=No+Image';
+                      }}
                     />
                     <div className="card-body">
                       <h5 className="card-title text-dark">{product.name}</h5>
