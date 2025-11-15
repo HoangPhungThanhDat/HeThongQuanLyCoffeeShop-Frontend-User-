@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 import { Link } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -12,6 +11,7 @@ import "swiper/css/autoplay";
 import Swiper from "swiper";
 import { Navigation, Autoplay } from "swiper/modules";
 import productApi from "../api/productApi";
+window.jQuery = window.$ = $;
 
 function SanPhamMoiNhat() {
   const [products, setProducts] = useState([]);

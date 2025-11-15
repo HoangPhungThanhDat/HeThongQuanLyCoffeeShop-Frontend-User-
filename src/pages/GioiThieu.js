@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -15,6 +14,7 @@ import anhMinh from "../assets/images/team/portrait-elegant-old-man-wearing-suit
 import chiLan from "../assets/images/team/cute-korean-barista-girl-pouring-coffee-prepare-filter-batch-brew-pour-working-cafe.jpg";
 import anhTuan from "../assets/images/team/small-business-owner-drinking-coffee.jpg";
 import maiAnh from "../assets/images/team/smiley-business-woman-working-cashier.jpg";
+window.jQuery = window.$ = $;
 function GioiThieu() {
   return (
     <div>

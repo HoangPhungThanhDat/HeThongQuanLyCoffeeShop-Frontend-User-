@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -11,6 +10,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
 import sandra from "../assets/images/reviews/user.png";
+window.jQuery = window.$ = $;
 function DanhGia() {
   return (
     <div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -16,6 +15,7 @@ import "swiper/css/autoplay";
 import banner1 from "../assets/images/banner2.jpg";
 import banner2 from "../assets/images/banner3.webp";
 import banner3 from "../assets/images/happy-waitress-giving-coffee-customers-while-serving-them-coffee-shop.jpg";
+window.jQuery = window.$ = $;
 
 function Header() {
   useEffect(() => {

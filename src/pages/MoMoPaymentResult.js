@@ -39,76 +39,76 @@ const MoMoPaymentResult = () => {
       if (resultCode === 0) {
         updatePaymentStatus(orderId || paymentData.orderId);
       }
+
+      // Hiển thị thông báo
+      setTimeout(() => {
+        if (resultCode === 0) {
+          Swal.fire({
+            icon: "success",
+            title: "Thanh toán MoMo thành công!",
+            html: `
+              <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 64px; margin-bottom: 15px;">
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" 
+                    alt="MoMo" 
+                    style="width: 80px; height: 80px; object-fit: contain;"
+                  />
+                </div>
+                <p style="font-size: 18px; color: #d946b6; font-weight: bold; margin-bottom: 10px;">
+                  🎉 Cảm ơn bạn đã thanh toán qua MoMo!
+                </p>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                  Đơn hàng <strong>#${orderId}</strong> đã được xác nhận
+                </p>
+                <div style="padding: 15px; background: #fdf4ff; border-radius: 8px; border: 1px solid #d946b6;">
+                  <p style="font-size: 16px; color: #831843; margin: 0;">
+                    Số tiền: <strong>${(paymentData?.amount || 0).toLocaleString()}₫</strong>
+                  </p>
+                </div>
+              </div>
+            `,
+            confirmButtonText: "Về trang chủ",
+            confirmButtonColor: "#d946b6",
+            allowOutsideClick: false,
+          }).then(() => {
+            navigate("/");
+          });
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "Thanh toán MoMo thất bại",
+            html: `
+              <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 64px; margin-bottom: 15px;">😔</div>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                  ${message || "Có lỗi xảy ra trong quá trình thanh toán qua MoMo"}
+                </p>
+                <div style="padding: 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #ef4444;">
+                  <p style="font-size: 14px; color: #991b1b; margin: 0;">
+                    Đơn hàng: <strong>#${orderId}</strong>
+                  </p>
+                </div>
+              </div>
+            `,
+            confirmButtonText: "Thử lại",
+            confirmButtonColor: "#ef4444",
+            showCancelButton: true,
+            cancelButtonText: "Về trang chủ",
+            cancelButtonColor: "#6b7280",
+            allowOutsideClick: false,
+          }).then((result) => {
+            if (result.isConfirmed) {
+              navigate(`/order-tracking/${orderId}`);
+            } else {
+              navigate("/");
+            }
+          });
+        }
+      }, 500);
     }
 
     setLoading(false);
-
-    // Hiển thị thông báo
-    setTimeout(() => {
-      if (resultCode === 0) {
-        Swal.fire({
-          icon: "success",
-          title: "Thanh toán MoMo thành công!",
-          html: `
-            <div style="text-align: center; padding: 20px;">
-              <div style="font-size: 64px; margin-bottom: 15px;">
-                <img 
-                  src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" 
-                  alt="MoMo" 
-                  style="width: 80px; height: 80px; object-fit: contain;"
-                />
-              </div>
-              <p style="font-size: 18px; color: #d946b6; font-weight: bold; margin-bottom: 10px;">
-                🎉 Cảm ơn bạn đã thanh toán qua MoMo!
-              </p>
-              <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-                Đơn hàng <strong>#${orderId}</strong> đã được xác nhận
-              </p>
-              <div style="padding: 15px; background: #fdf4ff; border-radius: 8px; border: 1px solid #d946b6;">
-                <p style="font-size: 16px; color: #831843; margin: 0;">
-                  Số tiền: <strong>${(paymentData?.amount || 0).toLocaleString()}₫</strong>
-                </p>
-              </div>
-            </div>
-          `,
-          confirmButtonText: "Về trang chủ",
-          confirmButtonColor: "#d946b6",
-          allowOutsideClick: false,
-        }).then(() => {
-          navigate("/");
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Thanh toán MoMo thất bại",
-          html: `
-            <div style="text-align: center; padding: 20px;">
-              <div style="font-size: 64px; margin-bottom: 15px;">😔</div>
-              <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
-                ${message || "Có lỗi xảy ra trong quá trình thanh toán qua MoMo"}
-              </p>
-              <div style="padding: 15px; background: #fef2f2; border-radius: 8px; border: 1px solid #ef4444;">
-                <p style="font-size: 14px; color: #991b1b; margin: 0;">
-                  Đơn hàng: <strong>#${orderId}</strong>
-                </p>
-              </div>
-            </div>
-          `,
-          confirmButtonText: "Thử lại",
-          confirmButtonColor: "#ef4444",
-          showCancelButton: true,
-          cancelButtonText: "Về trang chủ",
-          cancelButtonColor: "#6b7280",
-          allowOutsideClick: false,
-        }).then((result) => {
-          if (result.isConfirmed) {
-            navigate(`/order-tracking/${orderId}`);
-          } else {
-            navigate("/");
-          }
-        });
-      }
-    }, 500);
   }, [searchParams, navigate]);
 
   // ✅ Hàm cập nhật trạng thái thanh toán (LOCAL TEST)

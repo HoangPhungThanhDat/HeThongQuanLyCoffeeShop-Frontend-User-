@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -10,6 +9,7 @@ import "../assets/css/tooplate-barista.css";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
+window.jQuery = window.$ = $;
 function LienHe() {
   return (
     <div>

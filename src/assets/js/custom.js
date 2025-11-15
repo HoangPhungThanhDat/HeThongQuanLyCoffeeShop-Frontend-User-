@@ -1,7 +1,7 @@
 
   (function ($) {
   
-  "use strict";
+  
 
     // NAVBAR
     $('.navbar-collapse a').on('click',function(){

@@ -12,8 +12,6 @@ import ProductAPI from "../api/productApi";
 import BillAPI from "../api/billApi";
 import $ from "jquery";
 
-window.jQuery = window.$ = $;
-
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
@@ -23,6 +21,8 @@ import "../assets/css/GioHang.css";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
+
+window.jQuery = window.$ = $;
 
 const GioHang = () => {
   const [cart, setCart] = useState([]);

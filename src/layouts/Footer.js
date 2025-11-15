@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import $ from "jquery";
-window.jQuery = window.$ = $;
 
 // Import CSS
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -11,6 +10,7 @@ import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
 import { Link } from "react-router-dom";
+window.jQuery = window.$ = $;
 
 function Footer() {
   return (
