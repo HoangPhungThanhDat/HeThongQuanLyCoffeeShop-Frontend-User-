@@ -11,7 +11,7 @@ import categoryApi from "../api/categoryApi";
 import "../assets/css/loader.css";
 import socket from "../socket";
 
-// ✅ Sử dụng biến môi trường cho API URL
+// ✅ Giữ lại API_URL cho các API calls khác
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 // ✅ Base64 placeholder image để tránh lỗi network
@@ -162,7 +162,7 @@ function MenuMon() {
         originalPrice: product.price,
         discountPercentage: hasPromotion ? product.promotions[0].discountPercentage : 0,
         qty: 1,
-        image: `${API_URL}/api/products/image/${product.imageUrl}`,
+        image: product.imageUrl || PLACEHOLDER_IMAGE, // ✅ Dùng trực tiếp URL Cloudinary
       });
     }
 
@@ -170,7 +170,7 @@ function MenuMon() {
     window.dispatchEvent(new Event("cartUpdated"));
 
     const imgElement = event.target.closest(".product-card").querySelector("img");
-    const imgSrc = imgElement.src; // ✅ Sử dụng src hiện tại (có thể là placeholder)
+    const imgSrc = imgElement.src; // ✅ Sử dụng src hiện tại (từ Cloudinary hoặc placeholder)
     createFlyingImage(imgSrc, imgElement);
 
     const button = event.target;
@@ -249,7 +249,7 @@ function MenuMon() {
                   >
                     <div className="product-image-wrapper">
                       <img
-                        src={`${API_URL}/api/products/image/${product.imageUrl}`}
+                        src={product.imageUrl || PLACEHOLDER_IMAGE}
                         alt={product.name}
                         className="product-image"
                         onError={(e) => handleImageError(product.id, e)}

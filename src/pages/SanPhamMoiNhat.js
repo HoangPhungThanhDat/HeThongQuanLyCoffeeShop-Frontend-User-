@@ -13,7 +13,7 @@ import { Navigation, Autoplay } from "swiper/modules";
 import productApi from "../api/productApi";
 window.jQuery = window.$ = $;
 
-// ✅ Thêm biến môi trường cho API URL
+// ✅ Giữ lại API_URL cho các API calls
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 // ✅ Base64 placeholder image để tránh lỗi network
@@ -97,7 +97,7 @@ function SanPhamMoiNhat() {
                 <div className="swiper-slide" key={product.id}>
                   <div className="card border-0 shadow-lg h-100">
                     <img
-                      src={`${API_URL}/api/products/image/${product.imageUrl}`}
+                      src={product.imageUrl || PLACEHOLDER_IMAGE}
                       className="card-img-top"
                       alt={product.name}
                       style={{ height: "220px", objectFit: "cover" }}
