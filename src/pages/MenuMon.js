@@ -14,6 +14,9 @@ import socket from "../socket";
 // ✅ Sử dụng biến môi trường cho API URL
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
+// ✅ Base64 placeholder image để tránh lỗi network
+const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect width='300' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+
 function MenuMon() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -21,6 +24,7 @@ function MenuMon() {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [addingStatus, setAddingStatus] = useState({});
   const [hoveredCard, setHoveredCard] = useState(null);
+  const [imageErrors, setImageErrors] = useState({}); // ✅ Track image errors
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -120,11 +124,28 @@ function MenuMon() {
     audio.play();
   };
 
-  // ✅ Hàm handleAddToCart đã được sửa với URL động
+  // ✅ Xử lý lỗi hình ảnh - chỉ chạy 1 lần
+  const handleImageError = (productId, e) => {
+    // Nếu đã xử lý lỗi cho ảnh này rồi thì không làm gì nữa
+    if (imageErrors[productId]) {
+      return;
+    }
+
+    // Đánh dấu là đã xử lý lỗi
+    setImageErrors(prev => ({
+      ...prev,
+      [productId]: true
+    }));
+
+    // Set placeholder image
+    e.target.src = PLACEHOLDER_IMAGE;
+    
+    console.warn(`Không thể tải hình ảnh cho sản phẩm ID: ${productId}`);
+  };
+
   const handleAddToCart = (product, event) => {
     const cart = JSON.parse(localStorage.getItem("cart")) || [];
 
-    // Tính giá sau khuyến mãi
     const hasPromotion = product.promotions && product.promotions.length > 0;
     const finalPrice = hasPromotion
       ? product.price * (1 - product.promotions[0].discountPercentage / 100)
@@ -141,7 +162,7 @@ function MenuMon() {
         originalPrice: product.price,
         discountPercentage: hasPromotion ? product.promotions[0].discountPercentage : 0,
         qty: 1,
-        image: `${API_URL}/api/products/image/${product.imageUrl}`, // ✅ Sửa URL
+        image: `${API_URL}/api/products/image/${product.imageUrl}`,
       });
     }
 
@@ -149,7 +170,7 @@ function MenuMon() {
     window.dispatchEvent(new Event("cartUpdated"));
 
     const imgElement = event.target.closest(".product-card").querySelector("img");
-    const imgSrc = `${API_URL}/api/products/image/${product.imageUrl}`; // ✅ Sửa URL
+    const imgSrc = imgElement.src; // ✅ Sử dụng src hiện tại (có thể là placeholder)
     createFlyingImage(imgSrc, imgElement);
 
     const button = event.target;
@@ -228,13 +249,10 @@ function MenuMon() {
                   >
                     <div className="product-image-wrapper">
                       <img
-                        src={`${API_URL}/api/products/image/${product.imageUrl}`} // ✅ Sửa URL
+                        src={`${API_URL}/api/products/image/${product.imageUrl}`}
                         alt={product.name}
                         className="product-image"
-                        onError={(e) => {
-                          // ✅ Xử lý lỗi nếu ảnh không tải được
-                          e.target.src = 'https://via.placeholder.com/300x200?text=No+Image';
-                        }}
+                        onError={(e) => handleImageError(product.id, e)}
                       />
                       {hasPromotion && (
                         <div className="promotion-badge">

@@ -16,8 +16,12 @@ window.jQuery = window.$ = $;
 // ✅ Thêm biến môi trường cho API URL
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
+// ✅ Base64 placeholder image để tránh lỗi network
+const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='220'%3E%3Crect width='300' height='220' fill='%23e9ecef'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='16' fill='%23adb5bd'%3ENo Image%3C/text%3E%3C/svg%3E";
+
 function SanPhamMoiNhat() {
   const [products, setProducts] = useState([]);
+  const [imageErrors, setImageErrors] = useState({}); // ✅ Track image errors
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -53,6 +57,25 @@ function SanPhamMoiNhat() {
     }
   }, [products]);
 
+  // ✅ Xử lý lỗi hình ảnh - chỉ chạy 1 lần
+  const handleImageError = (productId, e) => {
+    // Nếu đã xử lý lỗi cho ảnh này rồi thì không làm gì nữa
+    if (imageErrors[productId]) {
+      return;
+    }
+
+    // Đánh dấu là đã xử lý lỗi
+    setImageErrors(prev => ({
+      ...prev,
+      [productId]: true
+    }));
+
+    // Set placeholder image
+    e.target.src = PLACEHOLDER_IMAGE;
+    
+    console.warn(`Không thể tải hình ảnh cho sản phẩm ID: ${productId}`);
+  };
+
   return (
     <section
       className="barista-section section-padding section-bg"
@@ -74,14 +97,11 @@ function SanPhamMoiNhat() {
                 <div className="swiper-slide" key={product.id}>
                   <div className="card border-0 shadow-lg h-100">
                     <img
-                      src={`${API_URL}/api/products/image/${product.imageUrl}`} // ✅ Sửa URL
+                      src={`${API_URL}/api/products/image/${product.imageUrl}`}
                       className="card-img-top"
                       alt={product.name}
                       style={{ height: "220px", objectFit: "cover" }}
-                      onError={(e) => {
-                        // ✅ Xử lý lỗi nếu ảnh không tải được
-                        e.target.src = 'https://via.placeholder.com/300x220?text=No+Image';
-                      }}
+                      onError={(e) => handleImageError(product.id, e)}
                     />
                     <div className="card-body">
                       <h5 className="card-title text-dark">{product.name}</h5>
