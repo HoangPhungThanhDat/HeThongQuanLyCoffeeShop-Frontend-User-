@@ -1,8 +1,8 @@
 import axios from "axios";
 
-// ✅ Dùng biến môi trường thay vì hard-code
+// ✅ Sửa từ import.meta.env thành process.env cho Create React App
 const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8080/api",
+  baseURL: process.env.REACT_APP_API_URL || "http://localhost:8080/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -14,7 +14,7 @@ axiosClient.interceptors.request.use(
     const token = localStorage.getItem("token");
 
     // Danh sách các endpoint PUBLIC (không cần token)
-    const publicEndpoints = ["/products","/tables", "/products/category","/categories", "/products/newest"];
+    const publicEndpoints = ["/products", "/tables", "/products/category", "/categories", "/products/newest"];
 
     // Kiểm tra xem URL hiện tại có thuộc public API không
     const isPublic = publicEndpoints.some((endpoint) =>
