@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { X, Plus, Minus, ShoppingCart } from "lucide-react";
 import productApi from "../api/productApi";
@@ -6,12 +5,16 @@ import categoryApi from "../api/categoryApi";
 import socket from "../socket";
 import "../assets/css/MenuModal.css";
 
+// ✅ Base64 placeholder image để tránh lỗi network
+const PLACEHOLDER_IMAGE = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='200'%3E%3Crect width='300' height='200' fill='%23ddd'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='18' fill='%23999'%3ENo Image%3C/text%3E%3C/svg%3E";
+
 const MenuModalForOrder = ({ isOpen, onClose, currentOrder, onAddItems }) => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState([]);
+  const [imageErrors, setImageErrors] = useState({}); // ✅ Track image errors
 
   useEffect(() => {
     if (isOpen) {
@@ -41,6 +44,25 @@ const MenuModalForOrder = ({ isOpen, onClose, currentOrder, onAddItems }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // ✅ Xử lý lỗi hình ảnh - chỉ chạy 1 lần
+  const handleImageError = (productId, e) => {
+    // Nếu đã xử lý lỗi cho ảnh này rồi thì không làm gì nữa
+    if (imageErrors[productId]) {
+      return;
+    }
+
+    // Đánh dấu là đã xử lý lỗi
+    setImageErrors(prev => ({
+      ...prev,
+      [productId]: true
+    }));
+
+    // Set placeholder image
+    e.target.src = PLACEHOLDER_IMAGE;
+    
+    console.warn(`Không thể tải hình ảnh cho sản phẩm ID: ${productId}`);
   };
 
   const handleQuantityChange = (product, delta) => {
@@ -74,7 +96,7 @@ const MenuModalForOrder = ({ isOpen, onClose, currentOrder, onAddItems }) => {
             price: finalPrice, // ✅ GIÁ ĐÃ GIẢM (nếu có khuyến mãi)
             originalPrice: product.price, // ✅ Giá gốc để hiển thị
             quantity: 1,
-            image: `http://localhost:8080/api/products/image/${product.imageUrl}`,
+            image: product.imageUrl || PLACEHOLDER_IMAGE, // ✅ Dùng trực tiếp URL Cloudinary
             discountPercentage: hasPromotion ? product.promotions[0].discountPercentage : 0,
           },
         ];
@@ -225,9 +247,10 @@ const MenuModalForOrder = ({ isOpen, onClose, currentOrder, onAddItems }) => {
                       </div>
                     )}
                     <img
-                      src={`http://localhost:8080/api/products/image/${product.imageUrl}`}
+                      src={product.imageUrl || PLACEHOLDER_IMAGE}
                       alt={product.name}
                       style={{ width: "100%", height: "150px", objectFit: "cover" }}
+                      onError={(e) => handleImageError(product.id, e)}
                     />
                     <div style={{ padding: "12px" }}>
                       <h4 style={{ fontSize: "14px", marginBottom: "8px", fontWeight: "600" }}>

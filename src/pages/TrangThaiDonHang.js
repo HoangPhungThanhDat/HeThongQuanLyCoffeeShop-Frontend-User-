@@ -21,6 +21,13 @@ import Swal from "sweetalert2";
 import "animate.css";
 import MenuModalForOrder from "./MenuModalForOrder";
 
+// ========== ✅ CẤU HÌNH URL CHO RAILWAY ==========
+const API_URL = process.env.REACT_APP_API_URL || 'https://hethongquanlycoffeeshop-backend-production.up.railway.app';
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'https://hethongquanlycoffeeshop-socketio-production.up.railway.app';
+
+console.log("🌐 API URL:", API_URL);
+console.log("🌐 Socket URL:", SOCKET_URL);
+
 const OrderTracking = () => {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -32,7 +39,7 @@ const OrderTracking = () => {
   const [loading, setLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [isCallingStaff, setIsCallingStaff] = useState(false); // ✅ Thêm state cho nút gọi
+  const [isCallingStaff, setIsCallingStaff] = useState(false);
 
   // ========== TOAST NOTIFICATION ==========
   const showToast = (icon, title, message = "") => {
@@ -106,7 +113,6 @@ const OrderTracking = () => {
     return labels[status] || status;
   };
 
-  // ========== LOAD ORDER FROM LOCALSTORAGE ==========
   // ========== LOAD ORDER FROM LOCALSTORAGE + FETCH FROM BACKEND ==========
   useEffect(() => {
     const loadOrderFromStorage = async () => {
@@ -136,25 +142,21 @@ const OrderTracking = () => {
           throw new Error("Thiếu mã đơn hàng");
         }
 
-        // ✅ SET STATE TẠM THỜI TỪ LOCALSTORAGE
         setOrderDetails(parsedOrder);
         setCurrentStatus(getStatusIndex(parsedOrder.status));
 
-        // ✅ FETCH TRẠNG THÁI MỚI NHẤT TỪ BACKEND
+        // ✅ FETCH TRẠNG THÁI MỚI NHẤT TỪ RAILWAY BACKEND
         try {
-          console.log(
-            `🔄 Đang fetch trạng thái mới nhất của đơn #${parsedOrder.orderNumber}...`
-          );
+          console.log(`🔄 Đang fetch trạng thái mới nhất từ Railway...`);
 
           const response = await fetch(
-            `http://localhost:8080/api/orders/${parsedOrder.orderNumber}`
+            `${API_URL}/api/orders/${parsedOrder.orderNumber}`
           );
 
           if (response.ok) {
             const latestOrder = await response.json();
-            console.log("✅ Đã fetch trạng thái từ backend:", latestOrder);
+            console.log("✅ Đã fetch trạng thái từ Railway:", latestOrder);
 
-            // Kiểm tra nếu trạng thái khác với localStorage
             if (
               latestOrder.status &&
               latestOrder.status !== parsedOrder.status
@@ -169,7 +171,6 @@ const OrderTracking = () => {
                 updatedAt: new Date().toISOString(),
               };
 
-              // Cập nhật state và localStorage
               setOrderDetails(updatedOrder);
               setCurrentStatus(getStatusIndex(latestOrder.status));
               localStorage.setItem(
@@ -177,7 +178,6 @@ const OrderTracking = () => {
                 JSON.stringify(updatedOrder)
               );
 
-              // Hiển thị thông báo nếu đã thanh toán
               if (latestOrder.status === "PAID") {
                 setTimeout(() => {
                   showToast(
@@ -187,15 +187,12 @@ const OrderTracking = () => {
                   );
                 }, 500);
               }
-            } else {
-              console.log("ℹ️ Trạng thái đã đồng bộ, không cần cập nhật");
             }
           } else {
             console.warn("⚠️ Không thể fetch trạng thái:", response.status);
           }
         } catch (fetchError) {
-          console.error("❌ Lỗi khi fetch trạng thái từ backend:", fetchError);
-          // Không throw error, vẫn hiển thị UI với data từ localStorage
+          console.error("❌ Lỗi khi fetch từ Railway:", fetchError);
         }
 
         setLoading(false);
@@ -220,7 +217,7 @@ const OrderTracking = () => {
     const checkConnection = () => {
       if (socket.connected) {
         setIsConnected(true);
-        console.log("✅ Socket đã kết nối");
+        console.log("✅ Socket đã kết nối tới Railway");
       } else {
         setIsConnected(false);
         console.log("⚠️ Socket chưa kết nối, đang kết nối lại...");
@@ -230,19 +227,6 @@ const OrderTracking = () => {
 
     checkConnection();
 
-    const originalOn = socket.on;
-
-    socket.on = function (event, handler) {
-      console.log(`👂 Registered listener for: ${event}`);
-      return originalOn.call(this, event, handler);
-    };
-
-    const anyEventHandler = (eventName, ...args) => {
-      console.log(`📨 Socket event received: ${eventName}`, args);
-    };
-
-    socket.onAny(anyEventHandler);
-
     socket.emit("join-order-tracking", {
       orderId: orderDetails.orderNumber,
       userType: "customer",
@@ -250,84 +234,31 @@ const OrderTracking = () => {
 
     console.log(`✅ Đã đăng ký theo dõi đơn hàng #${orderDetails.orderNumber}`);
 
-    // ===== ✅ FIX: HANDLE CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG =====
-    // ===== ✅ FIX: HANDLE CẬP NHẬT TRẠNG THÁI ĐƠN HÀNG - VERSION ĐẦY ĐỦ =====
     const handleOrderStatusUpdate = (data) => {
-      console.log("\n🔔 ==========================================");
-      console.log("🔔 NHẬN EVENT: order-status-updated");
-      console.log("🔔 ==========================================");
-      console.log(
-        "   - Order ID từ server:",
-        data.orderId,
-        `(type: ${typeof data.orderId})`
-      );
+      console.log("\n🔔 NHẬN EVENT: order-status-updated");
+      console.log("   - Order ID:", data.orderId);
       console.log("   - New Status:", data.status);
-      console.log(
-        "   - Current orderNumber:",
-        orderDetails.orderNumber,
-        `(type: ${typeof orderDetails.orderNumber})`
-      );
-
-      // ✅ SO SÁNH NHIỀU CÁCH ĐỂ ĐẢM BẢO KHỚP
-      const serverOrderId = data.orderId;
-      const clientOrderId = orderDetails.orderNumber;
 
       const isMatching =
-        serverOrderId == clientOrderId || // Loose equality (29 == "29")
-        serverOrderId === clientOrderId || // Strict equality
-        String(serverOrderId) === String(clientOrderId) || // String comparison
-        Number(serverOrderId) === Number(clientOrderId); // Number comparison
-
-      console.log("   - Comparison Details:");
-      console.log("     • Loose (==):", serverOrderId == clientOrderId);
-      console.log("     • Strict (===):", serverOrderId === clientOrderId);
-      console.log(
-        "     • String:",
-        String(serverOrderId) === String(clientOrderId)
-      );
-      console.log(
-        "     • Number:",
-        Number(serverOrderId) === Number(clientOrderId)
-      );
-      console.log("   - FINAL MATCH?", isMatching);
-      console.log("==========================================\n");
+        data.orderId == orderDetails.orderNumber ||
+        String(data.orderId) === String(orderDetails.orderNumber);
 
       if (isMatching) {
         const newStatusIndex = getStatusIndex(data.status);
-
-        console.log(`🔄 ✅ ID KHỚP - Đang cập nhật...`);
-        console.log(
-          `   - Trạng thái: ${data.status} → Index: ${newStatusIndex}`
-        );
-
-        // ✅ CẬP NHẬT currentStatus NGAY LẬP TỨC
         setCurrentStatus(newStatusIndex);
-        console.log(`   - ✅ Đã set currentStatus = ${newStatusIndex}`);
 
-        // ✅ CẬP NHẬT orderDetails VÀ LƯU VÀO localStorage
         setOrderDetails((prev) => {
           const updated = {
             ...prev,
-            status: data.status, // ✅ CẬP NHẬT STATUS MỚI
+            status: data.status,
           };
-
-          // ✅ LƯU VÀO localStorage
           localStorage.setItem("currentOrder", JSON.stringify(updated));
-          console.log("💾 Đã lưu orderDetails mới vào localStorage");
-          console.log("   - New status in localStorage:", updated.status);
-
           return updated;
         });
 
-        // ✅ HIỂN THỊ TOAST NOTIFICATION
-        const statusLabel = getStatusLabel(data.status);
-        showToast("success", "🔔 Cập nhật đơn hàng", statusLabel);
+        showToast("success", "🔔 Cập nhật đơn hàng", getStatusLabel(data.status));
 
-        // ✅ NẾU ĐÃ THANH TOÁN → HIỂN THỊ THÔNG BÁO ĐẶC BIỆT
         if (data.status === "PAID" || data.status === "COMPLETED") {
-          console.log(
-            "🎉 ĐƠN HÀNG ĐÃ THANH TOÁN - Hiển thị thông báo hoàn tất!"
-          );
           setTimeout(() => {
             showToast(
               "success",
@@ -336,48 +267,21 @@ const OrderTracking = () => {
             );
           }, 1000);
         }
-
-        console.log("✅ ĐÃ HOÀN TẤT CẬP NHẬT TRẠNG THÁI!\n");
-      } else {
-        console.warn("⚠️ ==========================================");
-        console.warn("⚠️ ORDER ID KHÔNG KHỚP - BỎ QUA EVENT");
-        console.warn("⚠️ ==========================================");
-        console.warn(
-          "   - Server orderId:",
-          serverOrderId,
-          `(${typeof serverOrderId})`
-        );
-        console.warn(
-          "   - Client orderNumber:",
-          clientOrderId,
-          `(${typeof clientOrderId})`
-        );
-        console.warn("⚠️ ==========================================\n");
       }
     };
 
-    // ===== HANDLE: Thêm món vào đơn =====
     const handleItemsAdded = (data) => {
-      console.log("📡 ===== NHẬN EVENT THÊM MÓN =====");
-      console.log("📦 Full data:", JSON.stringify(data, null, 2));
+      console.log("📡 NHẬN EVENT THÊM MÓN");
 
       const isMatchingOrder =
         data.orderId === orderDetails.orderNumber ||
-        data.orderId === String(orderDetails.orderNumber) ||
-        String(data.orderId) === String(orderDetails.orderNumber) ||
-        Number(data.orderId) === Number(orderDetails.orderNumber);
-
-      console.log("✅ ID khớp?", isMatchingOrder);
+        String(data.orderId) === String(orderDetails.orderNumber);
 
       if (isMatchingOrder) {
-        console.log("✅ ID KHỚP - Đang cập nhật state...");
-
         setOrderDetails((prev) => {
           let finalItems = [];
 
           if (Array.isArray(data.addedItems) && data.addedItems.length > 0) {
-            console.log("  ✅ Merge addedItems (có UI data) với items cũ");
-
             const formattedNewItems = data.addedItems.map((item) => ({
               id: item.productId || item.id,
               productId: item.productId || item.id,
@@ -393,17 +297,13 @@ const OrderTracking = () => {
             Array.isArray(data.updatedItems) &&
             data.updatedItems.length > 0
           ) {
-            console.log("  ⚠️ Dùng updatedItems từ backend (thiếu UI data)");
-
             const formattedItems = data.updatedItems.map((item) => {
               if (item.product) {
                 return {
                   id: item.product.id,
                   productId: item.product.id,
                   name: item.product.name || "Sản phẩm",
-                  image: item.product.imageUrl
-                    ? `http://localhost:8080/api/products/image/${item.product.imageUrl}`
-                    : "https://via.placeholder.com/50?text=?",
+                  image: item.product.imageUrl || "https://via.placeholder.com/50?text=?",
                   price: item.price,
                   quantity: item.quantity,
                   subtotal: item.subtotal || item.price * item.quantity,
@@ -423,11 +323,8 @@ const OrderTracking = () => {
 
             finalItems = formattedItems;
           } else {
-            console.warn("  ⚠️ Không có items mới, giữ nguyên items cũ");
             finalItems = prev.items || [];
           }
-
-          console.log("📦 Final items sau khi merge:", finalItems);
 
           const updatedOrder = {
             ...prev,
@@ -436,7 +333,6 @@ const OrderTracking = () => {
           };
 
           localStorage.setItem("currentOrder", JSON.stringify(updatedOrder));
-          console.log("💾 Đã lưu vào localStorage");
 
           return updatedOrder;
         });
@@ -451,13 +347,10 @@ const OrderTracking = () => {
       }
     };
 
-    // ===== HANDLE: Đơn hàng bị hủy =====
     const handleOrderCancelled = (data) => {
-      console.log("📡 Đơn hàng đã bị hủy:", data);
-
       if (
         data.orderId === orderDetails.orderNumber ||
-        data.orderId === String(orderDetails.orderNumber)
+        String(data.orderId) === String(orderDetails.orderNumber)
       ) {
         setOrderDetails((prev) => {
           const updated = {
@@ -483,10 +376,7 @@ const OrderTracking = () => {
       }
     };
 
-    // ===== ✅ HANDLE: Nhân viên đã nhận yêu cầu gọi =====
     const handleStaffAcknowledged = (data) => {
-      console.log("✅ Nhân viên đã xác nhận:", data);
-
       if (data.tableNumber === orderDetails.tableNumber) {
         setIsCallingStaff(false);
 
@@ -514,10 +404,7 @@ const OrderTracking = () => {
       }
     };
 
-    // ===== ✅ HANDLE: Xác nhận gọi nhân viên thành công =====
     const handleCallStaffSuccess = (data) => {
-      console.log("✅ Gọi nhân viên thành công:", data);
-
       if (data.success && data.tableNumber === orderDetails.tableNumber) {
         showToast(
           "success",
@@ -527,9 +414,8 @@ const OrderTracking = () => {
       }
     };
 
-    // ===== HANDLE: Socket events =====
     const handleConnect = () => {
-      console.log("✅ Socket kết nối thành công");
+      console.log("✅ Socket kết nối thành công tới Railway");
       setIsConnected(true);
     };
 
@@ -550,7 +436,6 @@ const OrderTracking = () => {
       });
     };
 
-    // Đăng ký các listeners
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("reconnect", handleReconnect);
@@ -560,10 +445,7 @@ const OrderTracking = () => {
     socket.on("staff-acknowledged", handleStaffAcknowledged);
     socket.on("call-staff-success", handleCallStaffSuccess);
 
-    // Cleanup
     return () => {
-      socket.offAny(anyEventHandler);
-
       socket.emit("leave-order-tracking", {
         orderId: orderDetails.orderNumber,
       });
@@ -577,9 +459,7 @@ const OrderTracking = () => {
       socket.off("staff-acknowledged", handleStaffAcknowledged);
       socket.off("call-staff-success", handleCallStaffSuccess);
 
-      console.log(
-        `👋 Đã rời khỏi theo dõi đơn hàng #${orderDetails.orderNumber}`
-      );
+      console.log(`👋 Đã rời khỏi theo dõi đơn hàng #${orderDetails.orderNumber}`);
     };
   }, [orderDetails, navigate]);
 
@@ -627,12 +507,10 @@ const OrderTracking = () => {
     },
   ];
 
-  // ========== HANDLE: Thêm món ==========
   const handleAddItems = (newItems) => {
     console.log("✅ Người dùng đã chọn các món:", newItems);
   };
 
-  // ========== HANDLE: Hủy đơn hàng ==========
   const handleCancelOrder = () => {
     Swal.fire({
       icon: "warning",
@@ -665,15 +543,12 @@ const OrderTracking = () => {
     });
   };
 
-  // ========== ✅ HANDLE: Gọi nhân viên (CẢI TIẾN) ==========
   const handleCallStaff = () => {
-    // Kiểm tra kết nối socket
     if (!isConnected) {
       showToast("error", "Không có kết nối", "Vui lòng kiểm tra kết nối mạng");
       return;
     }
 
-    // Hiển thị dialog xác nhận
     Swal.fire({
       title: "🔔 Gọi nhân viên",
       html: `
@@ -684,12 +559,6 @@ const OrderTracking = () => {
               🪑 ${orderDetails.tableNumber}
             </p>
           </div>
-          <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
-            Chúng tôi sẽ thông báo cho nhân viên đến hỗ trợ bạn ngay.
-          </p>
-          <p style="color: #f59e0b; font-size: 13px; margin: 0;">
-            💡 <strong>Tip:</strong> Bạn có thể gửi tin nhắn cụ thể trong bước tiếp theo
-          </p>
         </div>
       `,
       icon: "question",
@@ -698,23 +567,10 @@ const OrderTracking = () => {
       cancelButtonText: "Hủy",
       confirmButtonColor: "#22c55e",
       cancelButtonColor: "#6b7280",
-      customClass: {
-        popup: "animate__animated animate__zoomIn",
-      },
     }).then((result) => {
       if (result.isConfirmed) {
-        // Đặt trạng thái đang gọi
         setIsCallingStaff(true);
 
-        console.log("\n🔔 ==========================================");
-        console.log("🔔 KHÁCH HÀNG GỌI NHÂN VIÊN");
-        console.log("🔔 ==========================================");
-        console.log(`   - Bàn số: ${orderDetails.tableNumber}`);
-        console.log(`   - Order ID: ${orderDetails.orderNumber}`);
-        console.log(`   - Socket ID: ${socket.id}`);
-        console.log("==========================================\n");
-
-        // Emit socket event
         socket.emit("call-staff", {
           tableNumber: orderDetails.tableNumber,
           orderId: orderDetails.orderNumber,
@@ -725,55 +581,24 @@ const OrderTracking = () => {
           timestamp: new Date().toISOString(),
         });
 
-        // Hiển thị loading
         Swal.fire({
           title: "Đang gọi nhân viên...",
-          html: `
-            <div style="text-align: center; padding: 20px;">
-              <div style="font-size: 48px; margin-bottom: 15px;">📡</div>
-              <p style="color: #666; font-size: 16px;">
-                Đang gửi thông báo đến nhân viên...
-              </p>
-            </div>
-          `,
           allowOutsideClick: false,
           showConfirmButton: false,
           timer: 2000,
           timerProgressBar: true,
-          customClass: {
-            popup: "animate__animated animate__fadeIn",
-          },
           didOpen: () => {
             Swal.showLoading();
           },
         }).then(() => {
-          // Sau 2 giây, hiển thị thông báo đã gửi
           Swal.fire({
             icon: "success",
             title: "Đã gọi nhân viên!",
-            html: `
-              <div style="text-align: center;">
-                <div style="font-size: 48px; margin-bottom: 10px;">✅</div>
-                <p style="font-size: 16px; color: #666; margin-bottom: 10px;">
-                  Thông báo đã được gửi đến nhân viên
-                </p>
-                <p style="font-size: 14px; color: #22c55e; font-weight: bold;">
-                  🪑 Bàn ${orderDetails.tableNumber}
-                </p>
-                <p style="font-size: 13px; color: #999; margin-top: 10px;">
-                  Nhân viên sẽ đến hỗ trợ bạn trong giây lát
-                </p>
-              </div>
-            `,
             timer: 3000,
             timerProgressBar: true,
             showConfirmButton: false,
-            customClass: {
-              popup: "animate__animated animate__bounceIn",
-            },
           });
 
-          // Reset trạng thái sau 3 giây
           setTimeout(() => {
             setIsCallingStaff(false);
           }, 3000);
@@ -785,17 +610,8 @@ const OrderTracking = () => {
   // ========== HANDLE: Thanh toán VNPay ==========
   const handleVNPayPayment = async () => {
     try {
-      // Hiển thị loading
       Swal.fire({
         title: "Đang tạo thanh toán...",
-        html: `
-        <div style="text-align: center; padding: 20px;">
-          <div style="font-size: 48px; margin-bottom: 15px;">💳</div>
-          <p style="color: #666; font-size: 16px;">
-            Đang chuyển đến cổng thanh toán VNPay...
-          </p>
-        </div>
-      `,
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
@@ -803,9 +619,8 @@ const OrderTracking = () => {
         },
       });
 
-      // Gọi API tạo URL thanh toán
       const response = await fetch(
-        "http://localhost:8080/api/payment/create-vnpay-url",
+        `${API_URL}/api/payment/create-vnpay-url`,
         {
           method: "POST",
           headers: {
@@ -822,9 +637,6 @@ const OrderTracking = () => {
       const data = await response.json();
 
       if (data.success && data.paymentUrl) {
-        console.log("✅ Payment URL created:", data.paymentUrl);
-
-        // Lưu thông tin để check sau khi quay lại
         localStorage.setItem(
           "pendingPayment",
           JSON.stringify({
@@ -834,17 +646,13 @@ const OrderTracking = () => {
           })
         );
 
-        // Đóng loading và chuyển đến VNPay
         Swal.close();
-
-        // Redirect sang VNPay
         window.location.href = data.paymentUrl;
       } else {
         throw new Error(data.message || "Không thể tạo thanh toán");
       }
     } catch (error) {
       console.error("❌ Payment error:", error);
-
       Swal.fire({
         icon: "error",
         title: "Lỗi thanh toán",
@@ -855,33 +663,11 @@ const OrderTracking = () => {
     }
   };
 
-  // ========== ✅ HÀM XỬ LÝ THANH TOÁN MOMO ==========
-  // Thêm hàm này vào component OrderTracking
-
+  // ========== HANDLE: Thanh toán MoMo ==========
   const handleMoMoPayment = async () => {
     try {
-      // Hiển thị loading
       Swal.fire({
         title: "Đang tạo thanh toán MoMo...",
-        html: `
-        <div style="text-align: center; padding: 20px;">
-          <div style="font-size: 64px; margin-bottom: 15px;">
-            <img 
-              src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" 
-              alt="MoMo" 
-              style="width: 80px; height: 80px; object-fit: contain;"
-            />
-          </div>
-          <p style="color: #666; font-size: 16px; margin-top: 15px;">
-            Đang kết nối đến ví MoMo...
-          </p>
-          <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-radius: 8px;">
-            <p style="font-size: 13px; color: #92400e; margin: 0;">
-              💡 <strong>Lưu ý:</strong> Bạn sẽ được chuyển đến ứng dụng MoMo
-            </p>
-          </div>
-        </div>
-      `,
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
@@ -889,28 +675,17 @@ const OrderTracking = () => {
         },
       });
 
-      // ✅ TẠO ORDERID UNIQUE bằng cách thêm timestamp
       const uniqueOrderId = `${orderDetails.orderNumber}_${Date.now()}`;
 
-      console.log("\n💳 ==========================================");
-      console.log("💳 TẠO THANH TOÁN MOMO");
-      console.log("💳 ==========================================");
-      console.log(`   - Order ID: ${uniqueOrderId}`); // ✅ Log orderId mới
-      console.log(`   - Original Order: ${orderDetails.orderNumber}`);
-      console.log(`   - Amount: ${orderDetails.total}₫`);
-      console.log(`   - Table: ${orderDetails.tableNumber}`);
-      console.log("==========================================\n");
-
-      // ✅ Gọi API backend để tạo MoMo payment URL
       const response = await fetch(
-        "http://localhost:8080/api/momo/create-payment",
+        `${API_URL}/api/momo/create-payment`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            orderId: uniqueOrderId, // ✅ Dùng orderId unique
+            orderId: uniqueOrderId,
             amount: orderDetails.total,
             orderInfo: `Thanh toan don hang #${orderDetails.orderNumber} - Ban ${orderDetails.tableNumber}`,
           }),
@@ -919,49 +694,27 @@ const OrderTracking = () => {
 
       const data = await response.json();
 
-      console.log("📦 Response from backend:", data);
-
       if (data.success && data.paymentUrl) {
-        console.log("✅ Payment URL created:", data.paymentUrl);
-
-        // Lưu thông tin để check sau khi quay lại
         localStorage.setItem(
           "pendingMoMoPayment",
           JSON.stringify({
-            orderId: uniqueOrderId, // ✅ Lưu orderId unique
-            originalOrderId: orderDetails.orderNumber, // ✅ Lưu thêm order gốc
+            orderId: uniqueOrderId,
+            originalOrderId: orderDetails.orderNumber,
             amount: orderDetails.total,
             timestamp: new Date().toISOString(),
           })
         );
 
-        // Đóng loading
         Swal.close();
 
-        // Hiển thị thông báo trước khi redirect
         Swal.fire({
           icon: "success",
           title: "Đã tạo thanh toán!",
-          html: `
-          <div style="text-align: center;">
-            <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
-            <p style="font-size: 16px; color: #666; margin-bottom: 15px;">
-              Đang chuyển đến ví MoMo...
-            </p>
-            <div style="padding: 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #3b82f6;">
-              <p style="font-size: 14px; color: #1e40af; margin: 0;">
-                🔐 Thanh toán an toàn với MoMo
-              </p>
-            </div>
-          </div>
-        `,
           timer: 2000,
           timerProgressBar: true,
           showConfirmButton: false,
           allowOutsideClick: false,
         }).then(() => {
-          // ✅ Redirect sang MoMo
-          console.log("🔄 Redirecting to MoMo...");
           window.location.href = data.paymentUrl;
         });
       } else {
@@ -969,99 +722,39 @@ const OrderTracking = () => {
       }
     } catch (error) {
       console.error("❌ Payment error:", error);
-
       Swal.fire({
         icon: "error",
         title: "Lỗi thanh toán",
-        html: `
-        <div style="text-align: center;">
-          <p style="color: #666; margin-bottom: 15px;">
-            ${error.message || "Không thể kết nối đến cổng thanh toán MoMo"}
-          </p>
-          <div style="padding: 12px; background: #fef2f2; border-radius: 8px; border: 1px solid #ef4444;">
-            <p style="font-size: 13px; color: #991b1b; margin: 0;">
-              💡 <strong>Gợi ý:</strong> Kiểm tra kết nối mạng và thử lại
-            </p>
-          </div>
-        </div>
-      `,
+        text: error.message || "Không thể kết nối đến cổng thanh toán MoMo",
         confirmButtonText: "Thử lại",
         confirmButtonColor: "#d946b6",
-        showCancelButton: true,
-        cancelButtonText: "Đóng",
-        cancelButtonColor: "#6b7280",
-      }).then((result) => {
-        if (result.isConfirmed) {
-          handleMoMoPayment(); // Retry
-        }
       });
     }
   };
 
-  // ========== LOADING STATE ==========
+  // Phần render giữ nguyên như code cũ...
+  // (Giữ nguyên phần JSX từ dòng 900 trở đi)
+  
   if (loading) {
     return (
-      <div
-        className="container"
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
-        <Loader
-          size={48}
-          className="animate-spin"
-          style={{ color: "#5c4033" }}
-        />
-        <div style={{ fontSize: "18px", color: "#666" }}>
-          Đang tải thông tin đơn hàng...
-        </div>
+      <div className="container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column", gap: "20px" }}>
+        <Loader size={48} className="animate-spin" style={{ color: "#5c4033" }} />
+        <div style={{ fontSize: "18px", color: "#666" }}>Đang tải thông tin đơn hàng...</div>
       </div>
     );
   }
 
-  // ========== NO ORDER STATE ==========
   if (!orderDetails) {
     return (
-      <div
-        className="container"
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          flexDirection: "column",
-          gap: "20px",
-        }}
-      >
+      <div className="container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column", gap: "20px" }}>
         <AlertCircle size={64} style={{ color: "#ef4444" }} />
         <h2 style={{ margin: 0 }}>Không tìm thấy đơn hàng</h2>
-        <p style={{ color: "#666", margin: 0 }}>
-          Vui lòng đặt hàng trước khi xem trạng thái
-        </p>
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            padding: "12px 30px",
-            backgroundColor: "#5c4033",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-            fontSize: "16px",
-            marginTop: "10px",
-          }}
-        >
+        <button onClick={() => navigate("/")} style={{ padding: "12px 30px", backgroundColor: "#5c4033", color: "white", border: "none", borderRadius: "8px", cursor: "pointer" }}>
           Quay về trang chủ
         </button>
       </div>
     );
-  }
-
+  }  
   // ========== MAIN RENDER ==========
   return (
     <div className="container">
