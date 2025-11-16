@@ -21,8 +21,9 @@ import Swal from "sweetalert2";
 import "animate.css";
 import MenuModalForOrder from "./MenuModalForOrder";
 
-// ========== ✅ CẤU HÌNH URL CHO RAILWAY ==========
-const API_URL = process.env.REACT_APP_API_URL || 'https://hethongquanlycoffeeshop-backend-production.up.railway.app';
+// ========== ✅ CẤU HÌNH URL CHO RAILWAY (ĐÃ SỬA) ==========
+const API_URL = process.env.REACT_APP_API_URL || 'https://hethongquanlycoffeeshop-backend-production.up.railway.app/api';
+//                                                                                                                        ^^^^ THÊM /api
 const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'https://hethongquanlycoffeeshop-socketio-production.up.railway.app';
 
 console.log("🌐 API URL:", API_URL);
@@ -145,12 +146,12 @@ const OrderTracking = () => {
         setOrderDetails(parsedOrder);
         setCurrentStatus(getStatusIndex(parsedOrder.status));
 
-        // ✅ FETCH TRẠNG THÁI MỚI NHẤT TỪ RAILWAY BACKEND
+        // ✅ FETCH TRẠNG THÁI MỚI NHẤT TỪ RAILWAY BACKEND (ĐÃ SỬA)
         try {
           console.log(`🔄 Đang fetch trạng thái mới nhất từ Railway...`);
 
           const response = await fetch(
-            `${API_URL}/api/orders/${parsedOrder.orderNumber}`
+            `${API_URL}/orders/${parsedOrder.orderNumber}` // ✅ ĐÃ XÓA /api/
           );
 
           if (response.ok) {
@@ -607,11 +608,19 @@ const OrderTracking = () => {
     });
   };
 
-  // ========== HANDLE: Thanh toán VNPay ==========
+  // ========== HANDLE: Thanh toán VNPay (ĐÃ SỬA) ==========
   const handleVNPayPayment = async () => {
     try {
       Swal.fire({
-        title: "Đang tạo thanh toán...",
+        title: "Đang tạo thanh toán VNPay...",
+        html: `
+          <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 48px; margin-bottom: 15px;">💳</div>
+            <p style="color: #666; font-size: 16px;">
+              Đang kết nối đến cổng thanh toán...
+            </p>
+          </div>
+        `,
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
@@ -619,12 +628,15 @@ const OrderTracking = () => {
         },
       });
 
+      console.log("🔄 Sending VNPay request to:", `${API_URL}/payment/create-vnpay-url`);
+
       const response = await fetch(
-        `${API_URL}/api/payment/create-vnpay-url`,
+        `${API_URL}/payment/create-vnpay-url`, // ✅ ĐÃ XÓA /api/
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json", // ✅ THÊM HEADER
           },
           body: JSON.stringify({
             orderId: orderDetails.orderNumber,
@@ -634,7 +646,18 @@ const OrderTracking = () => {
         }
       );
 
+      console.log("📦 Response status:", response.status);
+      console.log("📦 Response ok:", response.ok);
+
+      // ✅ KIỂM TRA STATUS TRƯỚC KHI PARSE JSON
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Error response:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Không thể kết nối đến server'}`);
+      }
+
       const data = await response.json();
+      console.log("✅ Payment data:", data);
 
       if (data.success && data.paymentUrl) {
         localStorage.setItem(
@@ -647,27 +670,79 @@ const OrderTracking = () => {
         );
 
         Swal.close();
-        window.location.href = data.paymentUrl;
+
+        Swal.fire({
+          icon: "success",
+          title: "Đã tạo thanh toán!",
+          html: `
+            <div style="text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+              <p style="font-size: 16px; color: #666;">
+                Đang chuyển đến VNPay...
+              </p>
+            </div>
+          `,
+          timer: 2000,
+          timerProgressBar: true,
+          showConfirmButton: false,
+          allowOutsideClick: false,
+        }).then(() => {
+          console.log("🔄 Redirecting to:", data.paymentUrl);
+          window.location.href = data.paymentUrl;
+        });
       } else {
         throw new Error(data.message || "Không thể tạo thanh toán");
       }
     } catch (error) {
-      console.error("❌ Payment error:", error);
+      console.error("❌ VNPay Payment error:", error);
+
       Swal.fire({
         icon: "error",
-        title: "Lỗi thanh toán",
-        text: error.message || "Không thể kết nối đến cổng thanh toán",
+        title: "Lỗi thanh toán VNPay",
+        html: `
+          <div style="text-align: center;">
+            <p style="color: #666; margin-bottom: 15px;">
+              ${error.message || "Không thể kết nối đến cổng thanh toán"}
+            </p>
+            <div style="padding: 12px; background: #fef2f2; border-radius: 8px; border: 1px solid #ef4444;">
+              <p style="font-size: 13px; color: #991b1b; margin: 0;">
+                💡 <strong>Gợi ý:</strong> Kiểm tra kết nối mạng hoặc thử phương thức khác
+              </p>
+            </div>
+          </div>
+        `,
         confirmButtonText: "Thử lại",
-        confirmButtonColor: "#ef4444",
+        confirmButtonColor: "#0071c2",
+        showCancelButton: true,
+        cancelButtonText: "Đóng",
+        cancelButtonColor: "#6b7280",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          handleVNPayPayment(); // Retry
+        }
       });
     }
   };
 
-  // ========== HANDLE: Thanh toán MoMo ==========
+  // ========== HANDLE: Thanh toán MoMo (ĐÃ SỬA) ==========
   const handleMoMoPayment = async () => {
     try {
       Swal.fire({
         title: "Đang tạo thanh toán MoMo...",
+        html: `
+          <div style="text-align: center; padding: 20px;">
+            <div style="font-size: 64px; margin-bottom: 15px;">
+              <img 
+                src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png" 
+                alt="MoMo" 
+                style="width: 80px; height: 80px; object-fit: contain;"
+              />
+            </div>
+            <p style="color: #666; font-size: 16px; margin-top: 15px;">
+              Đang kết nối đến ví MoMo...
+            </p>
+          </div>
+        `,
         allowOutsideClick: false,
         showConfirmButton: false,
         didOpen: () => {
@@ -677,12 +752,16 @@ const OrderTracking = () => {
 
       const uniqueOrderId = `${orderDetails.orderNumber}_${Date.now()}`;
 
+      console.log("🔄 Sending MoMo request to:", `${API_URL}/momo/create-payment`);
+      console.log("📦 Order ID:", uniqueOrderId);
+
       const response = await fetch(
-        `${API_URL}/api/momo/create-payment`,
+        `${API_URL}/momo/create-payment`, // ✅ ĐÃ XÓA /api/
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "Accept": "application/json", // ✅ THÊM HEADER
           },
           body: JSON.stringify({
             orderId: uniqueOrderId,
@@ -692,7 +771,18 @@ const OrderTracking = () => {
         }
       );
 
+      console.log("📦 Response status:", response.status);
+      console.log("📦 Response ok:", response.ok);
+
+      // ✅ KIỂM TRA STATUS
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("❌ Error response:", errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText || 'Không thể kết nối đến server'}`);
+      }
+
       const data = await response.json();
+      console.log("✅ Payment data:", data);
 
       if (data.success && data.paymentUrl) {
         localStorage.setItem(
@@ -710,51 +800,124 @@ const OrderTracking = () => {
         Swal.fire({
           icon: "success",
           title: "Đã tạo thanh toán!",
+          html: `
+            <div style="text-align: center;">
+              <div style="font-size: 48px; margin-bottom: 15px;">✅</div>
+              <p style="font-size: 16px; color: #666; margin-bottom: 15px;">
+                Đang chuyển đến ví MoMo...
+              </p>
+              <div style="padding: 12px; background: #f0f9ff; border-radius: 8px; border: 1px solid #3b82f6;">
+                <p style="font-size: 14px; color: #1e40af; margin: 0;">
+                  🔐 Thanh toán an toàn với MoMo
+                </p>
+              </div>
+            </div>
+          `,
           timer: 2000,
           timerProgressBar: true,
           showConfirmButton: false,
           allowOutsideClick: false,
         }).then(() => {
+          console.log("🔄 Redirecting to:", data.paymentUrl);
           window.location.href = data.paymentUrl;
         });
       } else {
         throw new Error(data.message || "Không thể tạo thanh toán");
       }
     } catch (error) {
-      console.error("❌ Payment error:", error);
+      console.error("❌ MoMo Payment error:", error);
+
       Swal.fire({
         icon: "error",
-        title: "Lỗi thanh toán",
-        text: error.message || "Không thể kết nối đến cổng thanh toán MoMo",
+        title: "Lỗi thanh toán MoMo",
+        html: `
+          <div style="text-align: center;">
+            <p style="color: #666; margin-bottom: 15px;">
+              ${error.message || "Không thể kết nối đến cổng thanh toán MoMo"}
+            </p>
+            <div style="padding: 12px; background: #fef2f2; border-radius: 8px; border: 1px solid #ef4444;">
+              <p style="font-size: 13px; color: #991b1b; margin: 0;">
+                💡 <strong>Gợi ý:</strong> Kiểm tra kết nối mạng và thử lại
+              </p>
+            </div>
+          </div>
+        `,
         confirmButtonText: "Thử lại",
         confirmButtonColor: "#d946b6",
+        showCancelButton: true,
+        cancelButtonText: "Đóng",
+        cancelButtonColor: "#6b7280",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          handleMoMoPayment(); // Retry
+        }
       });
     }
   };
 
-  // Phần render giữ nguyên như code cũ...
-  // (Giữ nguyên phần JSX từ dòng 900 trở đi)
-  
+  // ========== LOADING STATE ==========
   if (loading) {
     return (
-      <div className="container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column", gap: "20px" }}>
-        <Loader size={48} className="animate-spin" style={{ color: "#5c4033" }} />
-        <div style={{ fontSize: "18px", color: "#666" }}>Đang tải thông tin đơn hàng...</div>
+      <div
+        className="container"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          flexDirection: "column",
+          gap: "20px",
+        }}
+      >
+        <Loader
+          size={48}
+          className="animate-spin"
+          style={{ color: "#5c4033" }}
+        />
+        <div style={{ fontSize: "18px", color: "#666" }}>
+          Đang tải thông tin đơn hàng...
+        </div>
       </div>
     );
   }
 
+  // ========== NO ORDER STATE ==========
   if (!orderDetails) {
     return (
-      <div className="container" style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", flexDirection: "column", gap: "20px" }}>
+      <div
+        className="container"
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          flexDirection: "column",
+          gap: "20px",
+        }}
+      >
         <AlertCircle size={64} style={{ color: "#ef4444" }} />
         <h2 style={{ margin: 0 }}>Không tìm thấy đơn hàng</h2>
-        <button onClick={() => navigate("/")} style={{ padding: "12px 30px", backgroundColor: "#5c4033", color: "white", border: "none", borderRadius: "8px", cursor: "pointer" }}>
+        <p style={{ color: "#666", margin: 0 }}>
+          Vui lòng đặt hàng trước khi xem trạng thái
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            padding: "12px 30px",
+            backgroundColor: "#5c4033",
+            color: "white",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontSize: "16px",
+            marginTop: "10px",
+          }}
+        >
           Quay về trang chủ
         </button>
       </div>
     );
-  }  
+  }
   // ========== MAIN RENDER ==========
   return (
     <div className="container">
